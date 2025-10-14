@@ -4,11 +4,11 @@ import { ref, computed } from 'vue';
 const estatDelJoc = ref({
   // Llista de paraules a escriure. Cada paraula és un objecte.
   paraules: [
-    { id: 1, text: 'component', estat: 'pendent' },
-    { id: 2, text: 'reactivitat', estat: 'pendent' },
-    { id: 3, text: 'javascript', estat: 'pendent' },
-    { id: 4, text: 'framework', estat: 'pendent' },
-    { id: 5, text: 'template', estat: 'pendent' }
+    { id: 1, text: 'component', estat: 'pendent', errors: 0},
+    { id: 2, text: 'reactivitat', estat: 'pendent', errors: 0},
+    { id: 3, text: 'javascript', estat: 'pendent', errors: 0},
+    { id: 4, text: 'framework', estat: 'pendent', errors: 0},
+    { id: 5, text: 'template', estat: 'pendent', errors: 0}
   ],
   // L'índex de la paraula que l'usuari ha d'escriure ara mateix.
   indexParaulaActiva: 0,
