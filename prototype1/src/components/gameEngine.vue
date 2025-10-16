@@ -2,94 +2,97 @@
 import { ref, computed } from 'vue';
 
 const estatDelJoc = ref({
-  // Llista de paraules a escriure. Cada paraula és un objecte.
   paraules: [
-    { id: 1, text: 'component', estat: 'pendent', errors: 0},
-    { id: 2, text: 'reactivitat', estat: 'pendent', errors: 0},
-    { id: 3, text: 'javascript', estat: 'pendent', errors: 0},
-    { id: 4, text: 'framework', estat: 'pendent', errors: 0},
-    { id: 5, text: 'template', estat: 'pendent', errors: 0}
+    { id: 1, text: 'component', estat: 'pendent', errors: 0 },
+    { id: 2, text: 'reactivitat', estat: 'pendent', errors: 0 },
+    { id: 3, text: 'javascript', estat: 'pendent', errors: 0 },
+    { id: 4, text: 'framework', estat: 'pendent', errors: 0 },
+    { id: 5, text: 'template', estat: 'pendent', errors: 0 }
   ],
-  // L'índex de la paraula que l'usuari ha d'escriure ara mateix.
   indexParaulaActiva: 0,
-  // El text que l'usuari està introduint a l'input.
   textEntrat: '',
-  // Un array on guardarem els resultats de cada paraula.
   estadistiques: [],
+  errorglobal: 0,
 });
 
-// Afegeix també una propietat computada per accedir fàcilment a la paraula activa
 const paraulaActiva = computed(() => {
   return estatDelJoc.value.paraules[estatDelJoc.value.indexParaulaActiva];
 });
-// Dins de <script setup>
 
-// Variable per guardar el temps d'inici de cada paraula
 let tempsIniciParaula = 0;
 
 function iniciarCronometreParaula() {
   tempsIniciParaula = Date.now();
 }
 
-// Funció principal que s'executa a cada pulsació
+// 🔹 Solo devuelve la clase, no modifica errores
+function obtenirClasseLletra(lletra, index) {
+  const entrada = estatDelJoc.value.textEntrat[index];
+  if (!entrada) return '';
+  return lletra === entrada ? 'lletra-correcta' : 'lletra-incorrecta';
+}
+
+// 🔹 Función principal
 function validarProgres() {
-  // Iniciem el cronòmetre només quan es comença a escriure la primera lletra
-  if (estatDelJoc.value.textEntrat.length === 1 && tempsIniciParaula === 0) {
+  const entrada = estatDelJoc.value.textEntrat.toLowerCase();
+  estatDelJoc.value.textEntrat = entrada;
+
+  if (entrada.length === 1 && tempsIniciParaula === 0) {
     iniciarCronometreParaula();
   }
 
-  // Comprovem si la paraula escrita és igual a la paraula activa
-  if (estatDelJoc.value.textEntrat === paraulaActiva.value.text) {
-    const tempsTrigat = Date.now() - tempsIniciParaula;
-    
-    // Desem les estadístiques
-    estatDelJoc.value.estadistiques.push({
-      paraula: paraulaActiva.value.text,
-      temps: tempsTrigat,
-      errors: 0, // De moment no comptem errors
-    });
+  const paraula = paraulaActiva.value;
 
-    // Marquem la paraula com a completada
-    paraulaActiva.value.estat = 'completada';
+  // 🔹 Comprobar letra por letra solo hasta la longitud actual
+  for (let i = 0; i < entrada.length; i++) {
+    // Inicializamos un array de tracking si no existe
+    paraula._errors = paraula._errors || [];
 
-    // Passem a la següent paraula
-    estatDelJoc.value.indexParaulaActiva++;
-    
-    // Netegem l'input i reiniciem el cronòmetre
-    estatDelJoc.value.textEntrat = '';
-    tempsIniciParaula = 0;
-
-    // Si hi ha una següent paraula
-    if (estatDelJoc.value.indexParaulaActiva < estatDelJoc.value.paraules.length) {
-      // (Podem afegir lògica addicional aquí si volem)
-    } else {
-      // Joc acabat!
-      console.log('Joc acabat!', estatDelJoc.value.estadistiques);
+    // Si la letra es incorrecta y no estaba marcada antes, sumamos
+    if (entrada[i] !== paraula.text[i] && !paraula._errors[i]) {
+      paraula.errors++;               // errores de la palabra
+      estatDelJoc.value.errorglobal++; // errores globales
+      paraula._errors[i] = true;      // marcamos esta posición como error ya contada
     }
   }
-}
 
+  // Si la palabra se ha completado correctamente
+  if (entrada === paraula.text) {
+    const tempsTrigat = Date.now() - tempsIniciParaula;
+
+    estatDelJoc.value.estadistiques.push({
+      paraula: paraula.text,
+      temps: tempsTrigat,
+      errors: paraula.errors
+    });
+
+    paraula.estat = 'completada';
+    estatDelJoc.value.indexParaulaActiva++;
+    estatDelJoc.value.textEntrat = '';
+    tempsIniciParaula = 0;
+  }
+}
 </script>
+
 <template>
   <div class="game-engine">
     <div class="paraules-container">
-      <!-- Iterem sobre la llista de paraules -->
       <div 
         v-for="(paraula, index) in estatDelJoc.paraules" 
         :key="paraula.id"
         class="paraula"
         :class="{ 'paraula-activa': index === estatDelJoc.indexParaulaActiva }"
       >
-        <!-- Mostramos letra por letra -->
-        <span v-for="(lletra, index) in paraula.text.split('')" :key="index"
-          :class="{
-            'lletra-correcta': index < estatDelJoc.textEntrat.length && lletra === estatDelJoc.textEntrat[index],
-            'lletra-incorrecta': index < estatDelJoc.textEntrat.length && lletra !== estatDelJoc.textEntrat[index]
-          }">
+        <span
+          v-for="(lletra, idx) in paraula.text.split('')"
+          :key="idx"
+          :class="obtenirClasseLletra(lletra, idx)"
+        >
           {{ lletra }}
         </span>
       </div>
     </div>
+
     <input 
       type="text" 
       class="text-input"
@@ -97,19 +100,38 @@ function validarProgres() {
       @input="validarProgres"
       placeholder="Comença a escriure..."
     />
+
+    <!-- Contador de errores globales y de palabra activa -->
+    <div class="estadistiques">
+      <p><strong>Errors globals:</strong> {{ estatDelJoc.errorglobal }}</p>
+      <p v-if="paraulaActiva">
+        <strong>Errors actuals:</strong> {{ paraulaActiva.errors }}
+      </p>
+    </div>
   </div>
 </template>
+
 <style scoped>
-    /*Estilos para la palabra activa*/
-    .paraula-activa {
-        background-color: lightgrey;
-        width: fit-content;
-    }
-    /*Estilos para las letras correctas e incorrectas*/
-    .paraula-activa .lletra-correcta {
-        color: green;
-    }
-    .paraula-activa .lletra-incorrecta {
-        color: red;
-    }
+.paraula-activa {
+  background-color: lightgrey;
+  width: fit-content;
+}
+.paraula-activa .lletra-correcta {
+  color: green;
+}
+.paraula-activa .lletra-incorrecta {
+  color: red;
+}
+.estadistiques {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+  width: fit-content;
+  border: 1px solid #ddd;
+}
+.estadistiques p {
+  margin: 0.2rem 0;
+  color: #333;
+}
 </style>
